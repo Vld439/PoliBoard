@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "tablero_facultad"
+		},
+		{
+			"name": "Tablero_ESP32",
+			"path": "Tablero_ESP32"
+		}
+	],
+	"settings": {}
+}
