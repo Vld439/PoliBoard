@@ -121,7 +121,11 @@ class _PantallaTableroState extends State<PantallaTablero> {
           isScanning = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Se requieren permisos de ubicación y Bluetooth para operar el tablero.')),
+          const SnackBar(
+            content: Text(
+              'Se requieren permisos de ubicación y Bluetooth para operar el tablero.',
+            ),
+          ),
         );
         return;
       }
@@ -133,7 +137,11 @@ class _PantallaTableroState extends State<PantallaTablero> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Es necesario encender el Bluetooth para continuar.')),
+            const SnackBar(
+              content: Text(
+                'Es necesario encender el Bluetooth para continuar.',
+              ),
+            ),
           );
           setState(() {
             isScanning = false;
@@ -150,7 +158,11 @@ class _PantallaTableroState extends State<PantallaTablero> {
             isScanning = false;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No fue posible activar el Bluetooth automáticamente. Por favor, actívelo de forma manual.')),
+            const SnackBar(
+              content: Text(
+                'No fue posible activar el Bluetooth automáticamente. Por favor, actívelo de forma manual.',
+              ),
+            ),
           );
         }
         return;
@@ -191,7 +203,9 @@ class _PantallaTableroState extends State<PantallaTablero> {
               });
 
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Conexión establecida con el tablero.')),
+                const SnackBar(
+                  content: Text('Conexión establecida con el tablero.'),
+                ),
               );
 
               await Future.delayed(const Duration(milliseconds: 500));
@@ -213,7 +227,11 @@ class _PantallaTableroState extends State<PantallaTablero> {
             isScanning = false;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No se pudo encontrar ningún tablero en el área cercana.')),
+            const SnackBar(
+              content: Text(
+                'No se pudo encontrar ningún tablero en el área cercana.',
+              ),
+            ),
           );
         }
       });
@@ -242,7 +260,11 @@ class _PantallaTableroState extends State<PantallaTablero> {
       await controlCharacteristic!.write(utf8.encode(comando));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('La aplicación requiere conexión Bluetooth para enviar este comando.')),
+        const SnackBar(
+          content: Text(
+            'La aplicación requiere conexión Bluetooth para enviar este comando.',
+          ),
+        ),
       );
     }
   }
@@ -556,15 +578,15 @@ class _PantallaTableroState extends State<PantallaTablero> {
                                 _crearContador(
                                   "Local",
                                   puntajeL,
-                                  () => cambiarPuntajeL(1, "L+"),
-                                  () => cambiarPuntajeL(-1, "L-"),
+                                  () => cambiarPuntajeL(1, "V+"),
+                                  () => cambiarPuntajeL(-1, "V-"),
                                   Colors.amberAccent,
                                 ),
                                 _crearContador(
                                   "Visitante",
                                   puntajeV,
-                                  () => cambiarPuntajeV(1, "V+"),
-                                  () => cambiarPuntajeV(-1, "V-"),
+                                  () => cambiarPuntajeV(1, "L+"),
+                                  () => cambiarPuntajeV(-1, "L-"),
                                   Colors.redAccent,
                                 ),
                               ],
@@ -576,14 +598,14 @@ class _PantallaTableroState extends State<PantallaTablero> {
                                 _crearContadorFaltas(
                                   "Faltas",
                                   faltasL,
-                                  () => cambiarFaltasL(1, "FL+"),
-                                  () => cambiarFaltasL(-1, "FL-"),
+                                  () => cambiarFaltasL(1, "FV+"),
+                                  () => cambiarFaltasL(-1, "FV-"),
                                 ),
                                 _crearContadorFaltas(
                                   "Faltas",
                                   faltasV,
-                                  () => cambiarFaltasV(1, "FV+"),
-                                  () => cambiarFaltasV(-1, "FV-"),
+                                  () => cambiarFaltasV(1, "FL+"),
+                                  () => cambiarFaltasV(-1, "FL-"),
                                 ),
                               ],
                             ),
