@@ -1,5 +1,5 @@
 {
     "clangd.arguments": [
-        "--query-driver=**\\xtensa-esp32-elf-g*.exe,**\\xtensa-esp32-elf-gcc*.exe,**"
+        "--query-driver=/home/vladimir/.platformio/packages/toolchain-xtensa-esp32/bin/xtensa-esp32-elf-*"
     ]
 }
