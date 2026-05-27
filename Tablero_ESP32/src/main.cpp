@@ -22,8 +22,8 @@
 #define NUM_LEDS_PUNTAJE (NUM_DIGITOS_PUNTAJE * LEDS_POR_DIGITO)
 #define NUM_LEDS_CONTADORES (NUM_DIGITOS_CONTADORES * LEDS_POR_DIGITO)
 
-// Nivel de brillo máximo permitido para evitar sobrecargas de energía
-#define BRIGHTNESS 30
+// SOLUCIÓN 1: Nivel de brillo aumentado para la cancha (máximo 255)
+#define BRIGHTNESS 200
 
 // Arreglos de memoria para controlar cada segmento LED individualmente
 CRGB leds_cronometro[NUM_LEDS_CRONOMETRO];
@@ -44,6 +44,10 @@ int minutos = 0;
 int segundos = 0;
 bool cronometroCorriendo = false;
 unsigned long tiempoAnterior = 0;
+
+// SOLUCIÓN 2: Variables para el parpadeo del reloj en pausa
+unsigned long tiempoUltimoParpadeo = 0;
+bool estadoLedsReloj = true;
 
 // Representación binaria de los números del 0 al 9 para displays de 7 segmentos
 const byte digitos[10] = {
@@ -86,14 +90,22 @@ void dibujarDigito(CRGB *tiraLeds, int posicionDigito, int numero, CRGB color) {
 }
 
 void actualizarMarcador() {
-  FastLED.clear();
+  // Limpiamos los colores de los arreglos específicos (Evita borrar el reloj cuando parpadea)
+  fill_solid(leds_puntaje_L, NUM_LEDS_PUNTAJE, CRGB::Black);
+  fill_solid(leds_puntaje_V, NUM_LEDS_PUNTAJE, CRGB::Black);
+  fill_solid(leds_faltas_L, NUM_LEDS_CONTADORES, CRGB::Black);
+  fill_solid(leds_faltas_V, NUM_LEDS_CONTADORES, CRGB::Black);
+  fill_solid(leds_periodo, NUM_LEDS_CONTADORES, CRGB::Black);
 
-  // Asignamos colores vivos y diferenciados
+  // SOLUCIÓN 3: Lógica de 3 dígitos (Centenas, Decenas, Unidades) para Local
+  if (golesLocal >= 100) dibujarDigito(leds_puntaje_L, 2, golesLocal / 100, CRGB::Yellow);
+  if (golesLocal >= 10)  dibujarDigito(leds_puntaje_L, 1, (golesLocal / 10) % 10, CRGB::Yellow);
   dibujarDigito(leds_puntaje_L, 0, golesLocal % 10, CRGB::Yellow);
-  dibujarDigito(leds_puntaje_L, 1, (golesLocal / 10) % 10, CRGB::Yellow);
 
+  // SOLUCIÓN 3: Lógica de 3 dígitos (Centenas, Decenas, Unidades) para Visitante
+  if (golesVisitante >= 100) dibujarDigito(leds_puntaje_V, 2, golesVisitante / 100, CRGB::Red);
+  if (golesVisitante >= 10)  dibujarDigito(leds_puntaje_V, 1, (golesVisitante / 10) % 10, CRGB::Red);
   dibujarDigito(leds_puntaje_V, 0, golesVisitante % 10, CRGB::Red);
-  dibujarDigito(leds_puntaje_V, 1, (golesVisitante / 10) % 10, CRGB::Red);
 
   dibujarDigito(leds_periodo, 0, periodo % 10, CRGB::Green);
   dibujarDigito(leds_faltas_L, 0, faltasLocal % 10, CRGB::Orange);
@@ -103,10 +115,13 @@ void actualizarMarcador() {
 }
 
 void actualizarRelojFisico() {
+  fill_solid(leds_cronometro, NUM_LEDS_CRONOMETRO, CRGB::Black); // Limpiamos solo el reloj
+  
   dibujarDigito(leds_cronometro, 3, (minutos / 10) % 10, CRGB::Cyan);
   dibujarDigito(leds_cronometro, 2, minutos % 10, CRGB::Cyan);
   dibujarDigito(leds_cronometro, 1, (segundos / 10) % 10, CRGB::Cyan);
   dibujarDigito(leds_cronometro, 0, segundos % 10, CRGB::Cyan);
+  
   FastLED.show();
 }
 
@@ -128,76 +143,69 @@ class MisCallbacks : public BLECharacteristicCallbacks {
     String valor = pCharacteristic->getValue().c_str();
 
     if (valor.length() > 0) {
-      if (valor == "L+")
-        golesLocal++;
-      else if (valor == "L-") {
-        if (golesLocal > 0)
-          golesLocal--;
-      } else if (valor == "V+")
-        golesVisitante++;
-      else if (valor == "V-") {
-        if (golesVisitante > 0)
-          golesVisitante--;
-      } else if (valor == "FL+")
-        faltasLocal++;
-      else if (valor == "FL-") {
-        if (faltasLocal > 0)
-          faltasLocal--;
-      } else if (valor == "FV+")
-        faltasVisitante++;
-      else if (valor == "FV-") {
-        if (faltasVisitante > 0)
-          faltasVisitante--;
-      } else if (valor == "P+") {
+      if (valor == "L+") golesLocal++;
+      else if (valor == "L-") { if (golesLocal > 0) golesLocal--; }
+      else if (valor == "V+") golesVisitante++;
+      else if (valor == "V-") { if (golesVisitante > 0) golesVisitante--; }
+      else if (valor == "FL+") { if (faltasLocal < 9) faltasLocal++; }
+      else if (valor == "FL-") { if (faltasLocal > 0) faltasLocal--; }
+      else if (valor == "FV+") { if (faltasVisitante < 9) faltasVisitante++; }
+      else if (valor == "FV-") { if (faltasVisitante > 0) faltasVisitante--; }
+      else if (valor == "P+") {
         periodo++;
-        if (periodo > 9)
-          periodo = 1; // Reinicia al periodo 1 cuando se excede el máximo permitido
+        if (periodo > 9) periodo = 1;
       }
 
       else if (valor == "T+") {
         minutos++;
-        if (minutos > 99)
-          minutos = 99;
+        if (minutos > 99) minutos = 99;
+        estadoLedsReloj = true;
         actualizarRelojFisico();
       } else if (valor == "T-") {
         minutos--;
-        if (minutos < 0)
-          minutos = 0;
+        if (minutos < 0) minutos = 0;
+        estadoLedsReloj = true;
         actualizarRelojFisico();
       } else if (valor == "T+5") {
         minutos += 5;
-        if (minutos > 99)
-          minutos = 99;
+        if (minutos > 99) minutos = 99;
+        estadoLedsReloj = true;
         actualizarRelojFisico();
       } else if (valor == "T+10") {
         minutos += 10;
-        if (minutos > 99)
-          minutos = 99;
+        if (minutos > 99) minutos = 99;
+        estadoLedsReloj = true;
         actualizarRelojFisico();
       } else if (valor.startsWith("T:")) {
         minutos = valor.substring(2).toInt();
         if (minutos >= 0 && minutos <= 99) {
           segundos = 0;
+          estadoLedsReloj = true;
           actualizarRelojFisico();
         }
       } else if (valor == "T_RESET") {
         minutos = 0;
         segundos = 0;
         cronometroCorriendo = false;
+        estadoLedsReloj = true;
         actualizarRelojFisico();
-      } else if (valor == "PLAY")
+      } else if (valor == "PLAY") {
         cronometroCorriendo = true;
-      else if (valor == "PAUSA")
+        estadoLedsReloj = true;
+      } else if (valor == "PAUSA") {
         cronometroCorriendo = false;
+      }
 
       else if (valor == "R") {
-        golesLocal = golesVisitante = faltasLocal = faltasVisitante = minutos =
-            segundos = 0;
+        golesLocal = golesVisitante = faltasLocal = faltasVisitante = minutos = segundos = 0;
         periodo = 1;
         cronometroCorriendo = false;
+        estadoLedsReloj = true;
         actualizarRelojFisico();
       }
-      actualizarMarcador();
+      
+      // Actualiza los puntajes sin borrar el reloj
+      actualizarMarcador(); 
     }
   }
 };
@@ -206,17 +214,13 @@ void setup() {
   Serial.begin(115200);
 
   // Inicialización de las tiras de LEDs en la librería FastLED
-  FastLED.addLeds<WS2813, PIN_CRONOMETRO, GRB>(leds_cronometro,
-                                               NUM_LEDS_CRONOMETRO);
-  FastLED.addLeds<WS2813, PIN_PUNTAJE_LOCAL, GRB>(leds_puntaje_L,
-                                                  NUM_LEDS_PUNTAJE);
-  FastLED.addLeds<WS2813, PIN_PUNTAJE_VISITANTE, GRB>(leds_puntaje_V,
-                                                      NUM_LEDS_PUNTAJE);
-  FastLED.addLeds<WS2813, PIN_FALTAS_LOCAL, GRB>(leds_faltas_L,
-                                                 NUM_LEDS_CONTADORES);
-  FastLED.addLeds<WS2813, PIN_FALTAS_VISITANTE, GRB>(leds_faltas_V,
-                                                     NUM_LEDS_CONTADORES);
+  FastLED.addLeds<WS2813, PIN_CRONOMETRO, GRB>(leds_cronometro, NUM_LEDS_CRONOMETRO);
+  FastLED.addLeds<WS2813, PIN_PUNTAJE_LOCAL, GRB>(leds_puntaje_L, NUM_LEDS_PUNTAJE);
+  FastLED.addLeds<WS2813, PIN_PUNTAJE_VISITANTE, GRB>(leds_puntaje_V, NUM_LEDS_PUNTAJE);
+  FastLED.addLeds<WS2813, PIN_FALTAS_LOCAL, GRB>(leds_faltas_L, NUM_LEDS_CONTADORES);
+  FastLED.addLeds<WS2813, PIN_FALTAS_VISITANTE, GRB>(leds_faltas_V, NUM_LEDS_CONTADORES);
   FastLED.addLeds<WS2813, PIN_PERIODO, GRB>(leds_periodo, NUM_LEDS_CONTADORES);
+  
   FastLED.setBrightness(BRIGHTNESS);
 
   actualizarMarcador();
@@ -247,9 +251,11 @@ void loop() {
     oldDeviceConnected = deviceConnected;
   }
 
-  // Lógica de actualización del cronómetro basada en el tiempo de ejecución (millis)
+  // Lógica de actualización del cronómetro y parpadeo
   if (cronometroCorriendo) {
+    estadoLedsReloj = true; // Asegura que esté encendido mientras corre
     unsigned long tiempoActual = millis();
+    
     if (tiempoActual - tiempoAnterior >= 1000) {
       tiempoAnterior = tiempoActual;
 
@@ -261,24 +267,48 @@ void loop() {
           // Efecto visual de parpadeo rojo al finalizar el tiempo del cronómetro
           cronometroCorriendo = false;
           for (int i = 0; i < 3; i++) {
+            fill_solid(leds_cronometro, NUM_LEDS_CRONOMETRO, CRGB::Black);
             dibujarDigito(leds_cronometro, 0, 0, CRGB::Red);
             dibujarDigito(leds_cronometro, 1, 0, CRGB::Red);
             dibujarDigito(leds_cronometro, 2, 0, CRGB::Red);
             dibujarDigito(leds_cronometro, 3, 0, CRGB::Red);
             FastLED.show();
             delay(400);
-            FastLED.clear(); // Apaga los LEDs temporalmente para crear el efecto intermitente
+            
+            fill_solid(leds_cronometro, NUM_LEDS_CRONOMETRO, CRGB::Black);
             FastLED.show();
             delay(400);
           }
-          actualizarMarcador(); // Vuelve a encender todos los dígitos después de la alarma
-          actualizarRelojFisico(); // Sincroniza la pantalla con el tiempo actual
+          actualizarMarcador(); 
+          actualizarRelojFisico(); 
         }
       } else {
         segundos--;
       }
       actualizarRelojFisico();
     }
+  } else {
+    // SOLUCIÓN 2: Lógica de parpadeo en Pausa
+    if (minutos > 0 || segundos > 0) {
+      if (millis() - tiempoUltimoParpadeo >= 500) {
+        tiempoUltimoParpadeo = millis();
+        estadoLedsReloj = !estadoLedsReloj; // Invierte el estado (Encendido/Apagado)
+
+        if (estadoLedsReloj) {
+          actualizarRelojFisico(); // Muestra los números
+        } else {
+          fill_solid(leds_cronometro, NUM_LEDS_CRONOMETRO, CRGB::Black); // Pinta de negro solo el reloj
+          FastLED.show();
+        }
+      }
+    } else {
+      // Si el reloj está en 00:00 y no corre, lo mantenemos encendido fijo
+      if (!estadoLedsReloj) {
+        estadoLedsReloj = true;
+        actualizarRelojFisico();
+      }
+    }
   }
+  
   delay(10);
 }
